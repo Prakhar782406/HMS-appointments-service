@@ -16,12 +16,17 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY app.py .
+COPY config.py .
+COPY wait-for-mysql.py .
+
+# Copy application directories
+COPY controllers/ ./controllers/
+COPY models/ ./models/
+COPY services/ ./services/
+COPY middleware/ ./middleware/
 
 # Expose port
 EXPOSE 5001
-
-# Copy wait script
-COPY wait-for-mysql.py .
 
 # Wait for MySQL to be ready and run the application
 CMD ["sh", "-c", "python wait-for-mysql.py && python app.py"]
