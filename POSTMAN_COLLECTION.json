@@ -1,0 +1,440 @@
+{
+	"info": {
+		"name": "Appointment Service",
+		"description": "Complete Postman collection for Appointment Service API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:5001",
+			"type": "string"
+		},
+		{
+			"key": "appointment_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "access_token",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Register User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    pm.test(\"User registered successfully\", function () {",
+									"        pm.response.to.have.status(201);",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"testuser\",\n  \"email\": \"test@example.com\",\n  \"password\": \"test123\",\n  \"role\": \"user\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/register",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "register"]
+						},
+						"description": "Register a new user"
+					}
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"access_token\", jsonData.access_token);",
+									"    pm.test(\"Login successful\", function () {",
+									"        pm.response.to.have.status(200);",
+									"        pm.expect(jsonData).to.have.property('access_token');",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "login"]
+						},
+						"description": "Login with username and password to get JWT token. Default admin credentials: admin/admin123"
+					}
+				},
+				{
+					"name": "Get Current User",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/auth/me",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "me"]
+						},
+						"description": "Get current user information (requires authentication)"
+					}
+				}
+			],
+			"description": "Authentication endpoints for user registration, login, and user information"
+		},
+		{
+			"name": "Health Check",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/health",
+					"host": ["{{base_url}}"],
+					"path": ["health"]
+				},
+				"description": "Check if the service is healthy and database is connected"
+			}
+		},
+		{
+			"name": "Book Appointment",
+			"item": [
+				{
+					"name": "Book Appointment - Valid",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"appointment_id\", jsonData.appointment.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"patient_id\": \"patient-123\",\n  \"doctor_id\": \"doctor-456\",\n  \"department_id\": \"dept-789\",\n  \"appointment_date\": \"2024-12-20T14:00:00Z\",\n  \"duration_minutes\": 30,\n  \"reason\": \"Regular checkup\",\n  \"notes\": \"First visit\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/appointments",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "appointments"]
+						},
+						"description": "Book a valid appointment (at least 2 hours in future, within clinic hours 9 AM - 5 PM)"
+					}
+				},
+				{
+					"name": "Book Appointment - Invalid Lead Time",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"patient_id\": \"patient-123\",\n  \"doctor_id\": \"doctor-456\",\n  \"appointment_date\": \"2024-12-10T13:00:00Z\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/appointments",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "appointments"]
+						},
+						"description": "Should fail - appointment less than 2 hours from now"
+					}
+				},
+				{
+					"name": "Book Appointment - Outside Clinic Hours",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"patient_id\": \"patient-123\",\n  \"doctor_id\": \"doctor-456\",\n  \"appointment_date\": \"2024-12-20T08:00:00Z\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/appointments",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "appointments"]
+						},
+						"description": "Should fail - appointment outside clinic hours (9 AM - 5 PM)"
+					}
+				}
+			]
+		},
+		{
+			"name": "Get Appointment",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{access_token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/v1/appointments/{{appointment_id}}",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "appointments", "{{appointment_id}}"]
+				},
+				"description": "Get appointment details by ID"
+			}
+		},
+		{
+			"name": "Reschedule Appointment",
+			"item": [
+				{
+					"name": "Reschedule - Valid",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"appointment_date\": \"2024-12-21T15:00:00Z\",\n  \"duration_minutes\": 45,\n  \"reason\": \"Need more time\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/appointments/{{appointment_id}}/reschedule",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "appointments", "{{appointment_id}}", "reschedule"]
+						},
+						"description": "Reschedule appointment (max 2 reschedules allowed)"
+					}
+				},
+				{
+					"name": "Reschedule - Max Limit",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"appointment_date\": \"2024-12-22T16:00:00Z\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/appointments/{{appointment_id}}/reschedule",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "appointments", "{{appointment_id}}", "reschedule"]
+						},
+						"description": "Should fail after 2 reschedules (3rd attempt)"
+					}
+				}
+			]
+		},
+		{
+			"name": "Confirm Appointment",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{access_token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/v1/appointments/{{appointment_id}}/confirm",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "appointments", "{{appointment_id}}", "confirm"]
+				},
+				"description": "Confirm a scheduled appointment (changes status to CONFIRMED)"
+			}
+		},
+		{
+			"name": "Cancel Appointment",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{access_token}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"reason\": \"Patient request\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/appointments/{{appointment_id}}/cancel",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "appointments", "{{appointment_id}}", "cancel"]
+				},
+				"description": "Cancel an appointment"
+			}
+		},
+		{
+			"name": "Complete Appointment",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{access_token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/v1/appointments/{{appointment_id}}/complete",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "appointments", "{{appointment_id}}", "complete"]
+				},
+				"description": "Mark an appointment as completed"
+			}
+		},
+		{
+			"name": "Get Appointments by Patient",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{access_token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/v1/appointments/patient/patient-123?status=SCHEDULED",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "appointments", "patient", "patient-123"],
+					"query": [
+						{
+							"key": "status",
+							"value": "SCHEDULED"
+						}
+					]
+				},
+				"description": "Get all appointments for a patient (optional status filter)"
+			}
+		},
+		{
+			"name": "Get Appointments by Doctor",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{access_token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/v1/appointments/doctor/doctor-456?start_date=2024-01-01&end_date=2024-12-31",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "appointments", "doctor", "doctor-456"],
+					"query": [
+						{
+							"key": "start_date",
+							"value": "2024-01-01"
+						},
+						{
+							"key": "end_date",
+							"value": "2024-12-31"
+						}
+					]
+				},
+				"description": "Get all appointments for a doctor (optional date range and status filters)"
+			}
+		}
+	]
+}
+
+

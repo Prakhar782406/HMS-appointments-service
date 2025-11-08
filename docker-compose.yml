@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: appointment-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: appointment_db
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - appointment-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  appointment-service:
+    build:
+      context: ./appointment-service
+      dockerfile: Dockerfile
+    container_name: appointment-service
+    ports:
+      - "5001:5001"
+    environment:
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=root
+      - MYSQL_DATABASE=appointment_db
+      - JWT_SECRET_KEY=your-secret-key-change-in-production
+      - JWT_ACCESS_TOKEN_EXPIRE_MINUTES=1440
+      - JWT_REFRESH_TOKEN_EXPIRE_DAYS=30
+      - DOCTOR_SERVICE_URL=http://doctor-service:5001
+      - PATIENT_SERVICE_URL=http://patient-service:5000
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - ./appointment-service:/app
+    networks:
+      - appointment-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  mysql-data:
+
+networks:
+  appointment-network:
+    driver: bridge
