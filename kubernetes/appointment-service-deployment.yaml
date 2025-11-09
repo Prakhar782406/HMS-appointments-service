@@ -16,8 +16,8 @@ spec:
     spec:
       containers:
       - name: appointment-service
-        image: appointment-service:latest
-        imagePullPolicy: IfNotPresent
+        image: kams97/appointment-service:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 5001
         env:
@@ -43,10 +43,6 @@ spec:
           value: "1440"
         - name: JWT_REFRESH_TOKEN_EXPIRE_DAYS
           value: "30"
-        - name: DOCTOR_SERVICE_URL
-          value: "http://doctor-service:5001"
-        - name: PATIENT_SERVICE_URL
-          value: "http://patient-service:5000"
         livenessProbe:
           httpGet:
             path: /health
