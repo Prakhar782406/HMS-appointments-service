@@ -33,8 +33,8 @@ jobs:
         - name: Build and push Docker image
           uses: docker/build-push-action@v4
           with:
-            context: appointment_service
-            file: ./Dockerfile
+            context: ./appointment-service
+            file: ./appointment-service/Dockerfile
             push: true
             platforms: linux/amd64,linux/arm64
             tags: ${{env.DOCKERHUB_USERNAME}}/appointment_service:latest
