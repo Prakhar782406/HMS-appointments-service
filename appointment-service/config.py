@@ -10,7 +10,7 @@ class Config:
     MYSQL_USER = os.getenv('MYSQL_USER', 'root')
     MYSQL_PASSWORD = os.getenv('MYSQL_PASSWORD', 'root')
     MYSQL_HOST = os.getenv('MYSQL_HOST', 'localhost')
-    MYSQL_PORT = os.getenv('MYSQL_PORT', '3306')
+    MYSQL_PORT = os.getenv('MYSQL_PORT', '33063')
     MYSQL_DATABASE = os.getenv('MYSQL_DATABASE', 'appointment_db')
     
     SQLALCHEMY_DATABASE_URI = f'mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DATABASE}'
@@ -27,9 +27,12 @@ class Config:
     JWT_REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv('JWT_REFRESH_TOKEN_EXPIRE_DAYS', '30'))  # 30 days
     
     # External service URLs
-    DOCTOR_SERVICE_URL = os.getenv('DOCTOR_SERVICE_URL', 'http://doctor-service:5001')
-    PATIENT_SERVICE_URL = os.getenv('PATIENT_SERVICE_URL', 'http://patient-service:5000')
-    
+    DOCTOR_SERVICE_URL = os.getenv('DOCTOR_SERVICE_URL', 'http://host.docker.internal:8082/v1/doctors')
+    PATIENT_SERVICE_URL = os.getenv('PATIENT_SERVICE_URL', 'http://host.docker.internal:8081/v1/patients')
+    NOTIFICATION_SERVICE_URL = os.getenv('NOTIFICATION_SERVICE_URL', 'http://host.docker.internal:8000/v1/webhook/events')
+    BILLING_SERVICE_URL = os.getenv('BILLING_SERVICE_URL', 'http://host.docker.internal:3002/v1/bills')
+    PRESCRIPTION_SERVICE_URL = os.getenv('PRESCRIPTION_SERVICE_URL', 'http://host.docker.internal:3001/api/v1/prescriptions')
+
     # Business Rules Configuration
     CLINIC_OPEN_HOUR = 9  # 9 AM
     CLINIC_CLOSE_HOUR = 17  # 5 PM

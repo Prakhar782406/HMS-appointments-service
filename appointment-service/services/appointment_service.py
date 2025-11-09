@@ -12,6 +12,17 @@ class AppointmentService:
     """Service for appointment business logic"""
     
     @staticmethod
+    def _format_datetime(dt: datetime) -> str:
+        """Format datetime to ISO format with Z suffix"""
+        from datetime import timezone
+        if dt is None:
+            return None
+        # Add UTC timezone info for ISO format output
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.isoformat().replace('+00:00', 'Z')
+
+    @staticmethod
     def validate_clinic_hours(appointment_date: datetime) -> Tuple[bool, Optional[str]]:
         """Validate that appointment is within clinic hours (9 AM - 5 PM UTC)"""
         appointment_time = appointment_date.time()
@@ -127,6 +138,23 @@ class AppointmentService:
         
         db.session.add(appointment)
         db.session.commit()
+
+        # Emit appointment.scheduled event
+        end_time = appointment_date + timedelta(minutes=duration_minutes)
+        event_data = {
+            'event_type': 'appointment.scheduled',
+            'appointment_id': appointment.id,
+            'patient_id': patient_id,
+            'doctor_id': doctor_id,
+            'department': department_id,
+            'slot': {
+                'start_time': AppointmentService._format_datetime(appointment_date),
+                'end_time': AppointmentService._format_datetime(end_time)
+            },
+            'status': 'SCHEDULED'
+        }
+        ExternalService.emit_appointment_event(event_data)
+
         return appointment
     
     @staticmethod
@@ -168,6 +196,10 @@ class AppointmentService:
         if not AppointmentService.check_patient_availability(appointment.patient_id, new_appointment_date, duration, exclude_appointment_id=appointment.id):
             raise ValueError('Patient already has an appointment at the new time slot')
         
+        # Store old slot details for event
+        old_start = appointment.appointment_date
+        old_end = old_start + timedelta(minutes=appointment.duration_minutes)
+
         # Update appointment
         appointment.appointment_date = new_appointment_date
         appointment.duration_minutes = duration
@@ -182,6 +214,26 @@ class AppointmentService:
             appointment.notes = notes
         
         db.session.commit()
+
+        # Emit appointment.rescheduled event
+        new_end = new_appointment_date + timedelta(minutes=duration)
+        event_data = {
+            'event_type': 'appointment.rescheduled',
+            'appointment_id': appointment.id,
+            'old_slot': {
+                'start_time': AppointmentService._format_datetime(old_start),
+                'end_time': AppointmentService._format_datetime(old_end)
+            },
+            'new_slot': {
+                'start_time': AppointmentService._format_datetime(new_appointment_date),
+                'end_time': AppointmentService._format_datetime(new_end)
+            },
+            'version': appointment.version,
+            'reschedule_count': appointment.reschedule_count,
+            'status': 'SCHEDULED'
+        }
+        ExternalService.emit_appointment_event(event_data)
+
         return appointment
     
     @staticmethod
@@ -202,5 +254,18 @@ class AppointmentService:
         
         db.session.commit()
         
+        # Emit appointment.cancelled event
+        event_data = {
+            'event_type': 'appointment.cancelled',
+            'appointment_id': appointment.id,
+            'patient_id': appointment.patient_id,
+            'doctor_id': appointment.doctor_id,
+            'cancelled_at': AppointmentService._format_datetime(appointment.cancelled_at),
+            'policy_applied': '50_percent_fee',  # Default policy - can be enhanced based on business logic
+            'refund_amount': 500.0,  # Default refund - can be enhanced based on business logic
+            'status': 'CANCELLED'
+        }
+        ExternalService.emit_appointment_event(event_data)
+
         return appointment
 

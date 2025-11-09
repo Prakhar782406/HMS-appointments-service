@@ -4,6 +4,7 @@ Appointment controller
 from flask import Blueprint, request, jsonify
 from datetime import datetime, timezone
 from services.appointment_service import AppointmentService
+from services.external_service import ExternalService
 from models.appointment import Appointment
 from models.db import db
 from middleware.auth import token_required
@@ -164,7 +165,7 @@ def confirm_appointment(current_user_id, current_user_role, appointment_id):
 @appointment_bp.route('/<appointment_id>/complete', methods=['POST'])
 @token_required
 def complete_appointment(current_user_id, current_user_role, appointment_id):
-    """Mark an appointment as completed"""
+    """Mark an appointment as completed, create bill and prescription"""
     appointment = Appointment.query.get(appointment_id)
     if not appointment:
         return jsonify({'error': 'Appointment not found'}), 404
@@ -172,14 +173,59 @@ def complete_appointment(current_user_id, current_user_role, appointment_id):
     if appointment.status not in ['CONFIRMED', 'SCHEDULED']:
         return jsonify({'error': f'Cannot complete appointment with status {appointment.status}'}), 400
     
+    # Create bill in billing service
+    consultation_fee = 2000.0
+    medication_fee = 800.0
+    bill_created, bill_data = ExternalService.create_bill(
+        patient_id=appointment.patient_id,
+        appointment_id=appointment.id,
+        consultation_fee=consultation_fee,
+        medication_fee=medication_fee
+    )
+
+    # Extract bill details
+    if bill_created and bill_data:
+        bill_id = bill_data.get('bill_id', f'B{appointment.id[:5]}')
+        total_amount = bill_data.get('total_amount', consultation_fee + medication_fee)
+    else:
+        # Fallback if billing service fails
+        bill_id = f'B{appointment.id[:5]}'
+        total_amount = consultation_fee + medication_fee
+
+    # Create prescription in prescription service
+    prescription_created, prescription_data = ExternalService.create_prescription(
+        appointment_id=appointment.id,
+        patient_id=appointment.patient_id,
+        doctor_id=appointment.doctor_id
+    )
+
+    # Mark appointment as completed
     appointment.status = 'COMPLETED'
     appointment.version += 1
     appointment.updated_at = datetime.utcnow()
     db.session.commit()
     
+    # Emit appointment.completed event
+    event_data = {
+        'event_type': 'appointment.completed',
+        'appointment_id': appointment.id,
+        'patient_id': appointment.patient_id,
+        'doctor_id': appointment.doctor_id,
+        'completed_at': AppointmentService._format_datetime(appointment.updated_at),
+        'bill_id': bill_id,
+        'total_amount': total_amount,
+        'status': 'COMPLETED'
+    }
+    ExternalService.emit_appointment_event(event_data)
+
     return jsonify({
         'message': 'Appointment marked as completed',
-        'appointment': appointment.to_dict()
+        'appointment': appointment.to_dict(),
+        'bill_created': bill_created,
+        'bill_id': bill_id if bill_created else None,
+        'total_amount': total_amount if bill_created else None,
+        'prescription_created': prescription_created,
+        'prescription': prescription_data if prescription_created else None
     }), 200
 
 @appointment_bp.route('/patient/<patient_id>', methods=['GET'])
